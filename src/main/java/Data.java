@@ -1,37 +1,40 @@
 import javax.swing.*;
 import javax.swing.plaf.nimbus.State;
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.*;
 
 public class Data {
-    static final int studentsCount = 2;
-    static final int subjectsCount = 4;
+    static final int STUDENTS_COUNT = 2;
+    static final int SUBJECTS_COUNT = 4;
 //    // this will load the MySQL driver, each DB has its own driver
 //    Class.forName("com.mysql.jdbc.Driver");
 
     public int[] subjectsInitialize(int count) {
         int[] subjects = new int[count];
-        for (int value : subjects) {
-            value = (int) ((Math.random() + 1) * subjectsCount);
-        }
+        for (int i = 0; i < count; i++)
+            subjects[i] = i+1;
         return subjects;
     }
 
-
     public static void main(String[] args) {
         Data data = new Data();
-        int[] zakharovSubject = data.subjectsInitialize(3);
-        int[] perminovSubject = data.subjectsInitialize(2);
+        int[] zakharovSubject = data.subjectsInitialize(2);
+        int[] perminovSubject = data.subjectsInitialize(3);
         Student zakharovStudent = new Student("E.I.", "Zakharov", zakharovSubject);
         Student perminovStudent = new Student("E.V.", "Perminov", perminovSubject);
-        Student[] studentsList = new Student[studentsCount];
+        Student[] studentsList = new Student[STUDENTS_COUNT];
         studentsList[0] = zakharovStudent;
         studentsList[1] = perminovStudent;
-        String[] subjectsList = new String[subjectsCount];
-        subjectsList[0] = "Maths";
-        subjectsList[1] = "History";
-        subjectsList[2] = "Chemisty";
-        subjectsList[3] = "Physics";
+        Subject[] subjectsList = new Subject[SUBJECTS_COUNT];
+        subjectsList[0] = new Subject("Maths");
+        subjectsList[1] = new Subject("History");
+        subjectsList[2] = new Subject("Chemisty");
+        subjectsList[3] = new Subject("Physics");
+        Map<Student, int[]> students = new HashMap<Student, int[]>();
+        for (int i = 0; i < STUDENTS_COUNT; i++)
+            students.put(studentsList[i], studentsList[i].subjects);
         Connection connection = null;
         //URL к базе состоит из протокола:подпротокола://[хоста]:[порта_СУБД]/[БД] и других_сведений
         String url = "jdbc:mysql://localhost:3306/students";
@@ -60,7 +63,7 @@ public class Data {
 
 
             // TODO Вставка нескольких строк через BATCH
-            // TODO SQL INJECTION
+            // TODO ПРОБЛЕМА С PRIMARY KEYS! ID PROBLEM
             //Выполним запрос
             ResultSet result1 = statement.executeQuery(
                     "SELECT * FROM studentslist");
@@ -80,7 +83,7 @@ public class Data {
 
 
             //Обновить запись
-           // statement.executeUpdate("UPDATE studentslist");
+            // statement.executeUpdate("UPDATE studentslist");
             //2.PreparedStatement: предварительно компилирует запросы,
             //которые могут содержать входные параметры
             PreparedStatement preparedStatement = null;
@@ -89,9 +92,7 @@ public class Data {
             // TODO через BATCH работает!
 
             preparedStatement = connection.prepareStatement("USE STUDENTS");
-            for (Student student : studentsList)
-            {
-                idStudent++;
+            for (Student student : studentsList) {
                 preparedStatement = connection.prepareStatement(
                         "INSERT INTO studentslist(initials, lastname) values" + "(?, ?)");
                 preparedStatement.setString(1, student.initials);
@@ -99,23 +100,22 @@ public class Data {
                 preparedStatement.addBatch();
                 preparedStatement.executeBatch();
             }
-            for (int i = 1; i > studentsCount; i++) {
-                for (int j = 0; j < studentsList; j++)
-                 {
-                    preparedStatement = connection.prepareStatement("INSERT INTO journal(student_id, subject_id) values" + "(?, ?)");
-                    preparedStatement.setInt(1, i);
-                    preparedStatement.setInt(2, student.subjects[j]);
-                 }
-            }
-            for (String subject : subjectsList)
-            {
+            for (Subject subject : subjectsList) {
                 preparedStatement = connection.prepareStatement(
                         "INSERT INTO subjects(name) values" + "(?)");
-                preparedStatement.setString(1, subject);
+                preparedStatement.setString(1, subject.name);
                 preparedStatement.addBatch();
                 preparedStatement.executeBatch();
             }
-
+            for (Student key : students.keySet()) {
+                preparedStatement = connection.prepareStatement("INSERT INTO journal(student_id, subject_id) values" + "(?, ?)");
+                for (int i = 0; i < students.get(key).length; i++) {
+                    preparedStatement.setInt(1, key.idStudent);
+                    preparedStatement.setInt(2, students.get(key)[i]);
+                    preparedStatement.addBatch();
+                    preparedStatement.executeBatch();
+                }
+            }
 /*
             //3.CallableStatement: используется для вызова хранимых функций,
             // которые могут содержать входные и выходные параметры
