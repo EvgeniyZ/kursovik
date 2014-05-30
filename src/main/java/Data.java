@@ -1,15 +1,37 @@
 import javax.swing.*;
+import javax.swing.plaf.nimbus.State;
 import java.sql.*;
 import java.util.logging.*;
 
 public class Data {
-
+    static final int studentsCount = 2;
+    static final int subjectsCount = 4;
 //    // this will load the MySQL driver, each DB has its own driver
 //    Class.forName("com.mysql.jdbc.Driver");
 
+    public int[] subjectsInitialize(int count) {
+        int[] subjects = new int[count];
+        for (int value : subjects) {
+            value = (int) ((Math.random() + 1) * subjectsCount);
+        }
+        return subjects;
+    }
+
 
     public static void main(String[] args) {
-
+        Data data = new Data();
+        int[] zakharovSubject = data.subjectsInitialize(3);
+        int[] perminovSubject = data.subjectsInitialize(2);
+        Student zakharovStudent = new Student("E.I.", "Zakharov", zakharovSubject);
+        Student perminovStudent = new Student("E.V.", "Perminov", perminovSubject);
+        Student[] studentsList = new Student[studentsCount];
+        studentsList[0] = zakharovStudent;
+        studentsList[1] = perminovStudent;
+        String[] subjectsList = new String[subjectsCount];
+        subjectsList[0] = "Maths";
+        subjectsList[1] = "History";
+        subjectsList[2] = "Chemisty";
+        subjectsList[3] = "Physics";
         Connection connection = null;
         //URL к базе состоит из протокола:подпротокола://[хоста]:[порта_СУБД]/[БД] и других_сведений
         String url = "jdbc:mysql://localhost:3306/students";
@@ -26,27 +48,25 @@ public class Data {
             System.out.println("Соединение установлено");
             //Для использования SQL запросов существуют 3 типа объектов:
             //1.Statement: используется для простых случаев без параметров
-            Statement statement = null;
+            /*Statement statement = null;
 
             statement = connection.createStatement();
 //            Очищаем базу данных
-            statement.executeUpdate("DELETE FROM students.group");
+//            statement.executeUpdate("DELETE FROM students.group");
            // Вставить запись
-            statement.executeUpdate("INSERT INTO students.group(idgroup, firstname, lastname) values(1,'Anastasya', 'Lubich')");
-            statement.executeUpdate("INSERT INTO students.group(idgroup, firstname, lastname) values(2,'Evgeny', 'Perminov')");
-            statement.executeUpdate("INSERT INTO students.group(idgroup, firstname, lastname) values(3,'Evgeny', 'Zakharov')");
-            statement.executeUpdate("INSERT INTO students.group(idgroup, firstname, lastname) values(4,'Nikita', 'Ermolenko')");
+            statement.executeUpdate("USE STUDENTS");
+            statement.executeUpdate("INSERT INTO studentslist(initials, lastname) values" + "(" + zakharovStudent.initials + "," + zakharovStudent.subjects + ")"
+                                                                                  );
+
 
             // TODO Вставка нескольких строк через BATCH
             // TODO SQL INJECTION
-
             //Выполним запрос
             ResultSet result1 = statement.executeQuery(
-                    "SELECT * FROM students.group");
+                    "SELECT * FROM studentslist");
             //result это указатель на первую строку с выборки
             //чтобы вывести данные мы будем использовать
             //метод next() , с помощью которого переходим к следующему элементу
-
             System.out.println("Выводим statement");
             while (result1.next())
             {
@@ -55,40 +75,48 @@ public class Data {
                         + "\t Фамилия студента" + result1.getString("lastname"));
             }
             // Удалить запись
-            while (result1.getString("firstname") == "Nikita")
-                result1.deleteRow();
+            while (result1.getString("lastname") == "Petrov")
+                result1.deleteRow();*/
 
 
             //Обновить запись
-            statement.executeUpdate("UPDATE students.group SET root = 'admin' where id = 1");
-            /*//2.PreparedStatement: предварительно компилирует запросы,
+           // statement.executeUpdate("UPDATE studentslist");
+            //2.PreparedStatement: предварительно компилирует запросы,
             //которые могут содержать входные параметры
             PreparedStatement preparedStatement = null;
-            // ? - место вставки нашего значеня
-            preparedStatement = connection.prepareStatement(
-                    "SELECT * FROM users where id > ? and id < ?");
-            //Устанавливаем в нужную позицию значения определённого типа
-            preparedStatement.setInt(1, 2);
-            preparedStatement.setInt(2, 10);
-            //выполняем запрос
-            ResultSet result2 = preparedStatement.executeQuery();
 
-            System.out.println("Выводим PreparedStatement");
-            while (result2.next()) {
-                System.out.println("Номер в выборке #" + result2.getRow()
-                        + "\t Номер в базе #" + result2.getInt("id")
-                        + "\t" + result2.getString("username"));
+            //TODO ПРОДУМАТЬ КАК НОРМАЛЬНО ДОБАВЛЯТЬ СТУДЕНТОВ, ПРЕДМЕТЫ И ИХ СВЯЗЬ. СТУДЕНТ 1 УЧИТ ИСТОРИЮ ХИМИЮ БИОЛОГИЮ И Т.Д.
+            // TODO через BATCH работает!
+
+            preparedStatement = connection.prepareStatement("USE STUDENTS");
+            for (Student student : studentsList)
+            {
+                idStudent++;
+                preparedStatement = connection.prepareStatement(
+                        "INSERT INTO studentslist(initials, lastname) values" + "(?, ?)");
+                preparedStatement.setString(1, student.initials);
+                preparedStatement.setString(2, student.lastname);
+                preparedStatement.addBatch();
+                preparedStatement.executeBatch();
+            }
+            for (int i = 1; i > studentsCount; i++) {
+                for (int j = 0; j < studentsList; j++)
+                 {
+                    preparedStatement = connection.prepareStatement("INSERT INTO journal(student_id, subject_id) values" + "(?, ?)");
+                    preparedStatement.setInt(1, i);
+                    preparedStatement.setInt(2, student.subjects[j]);
+                 }
+            }
+            for (String subject : subjectsList)
+            {
+                preparedStatement = connection.prepareStatement(
+                        "INSERT INTO subjects(name) values" + "(?)");
+                preparedStatement.setString(1, subject);
+                preparedStatement.addBatch();
+                preparedStatement.executeBatch();
             }
 
-            preparedStatement = connection.prepareStatement(
-                    "INSERT INTO users(username) values(?)");
-            preparedStatement.setString(1, "user_name");
-            //метод принимает значение без параметров
-            //темже способом можно сделать и UPDATE
-            preparedStatement.executeUpdate();
-
-
-
+/*
             //3.CallableStatement: используется для вызова хранимых функций,
             // которые могут содержать входные и выходные параметры
             CallableStatement callableStatement = null;
